@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import pandas
 import math
 import time
 
@@ -22,8 +23,13 @@ ret, frame_next = cap.read()
 height, width, channels = frame_next.shape
 motion_history = np.zeros((height, width), np.float32)
 frame_pre = frame_next.copy()
+frame_next = frame_next[:,::-1]
+frame_number = 0
+point_y = 0
+point_x = 0
 
 while True:
+    frame_number += 1
     # フレーム間の差分計算
     color_diff = cv2.absdiff(frame_next, frame_pre)
     # グレースケール変換
@@ -43,32 +49,41 @@ while True:
     mask, orientation = cv2.motempl.calcMotionGradient(motion_history, 0.25, 0.05, apertureSize = 5)
 
     # 各座標の動きを緑色の線で描画
-    # width_i = GRID_WIDTH
-    # while width_i < width:
-    #     height_i = GRID_WIDTH
-    #     while height_i < height:
-    #         cv2.circle(hist_gray,
-    #                    (width_i, height_i),
-    #                    CIRCLE_RADIUS,
-    #                    (0, 255, 0),
-    #                    2,
-    #                    16,
-    #                    0)
-    #         angle_deg = orientation[height_i - 1][width_i - 1]
-    #         if angle_deg > 0:
-    #             angle_rad = math.radians(angle_deg)
-    #             cv2.line(hist_gray,
-    #                      (width_i, height_i),
-    #                      (int(width_i + math.cos(angle_rad) * LINE_LENGTH_GRID), int(height_i + math.sin(angle_rad) * LINE_LENGTH_GRID)),
-    #                      (0, 255, 0),
-    #                      2,
-    #                      16,
-    #                      0)
+    width_i = GRID_WIDTH
+    while width_i < width:
+        height_i = GRID_WIDTH
+        while height_i < height:
+            cv2.circle(hist_gray,
+                       (width_i, height_i),
+                       CIRCLE_RADIUS,
+                       (0, 255, 0),
+                       2,
+                       16,
+                       0)
+            angle_deg = orientation[height_i - 1][width_i - 1]
+            if angle_deg > 0:
+                angle_rad = math.radians(angle_deg)
+                cv2.line(hist_gray,
+                         (width_i, height_i),
+                         (int(width_i + math.cos(angle_rad) * LINE_LENGTH_GRID), int(height_i + math.sin(angle_rad) * LINE_LENGTH_GRID)),
+                         (0, 255, 0),
+                         2,
+                         16,
+                         0)
+            if frame_number % 5 == 0:
+                move_points = np.where(orientation > 0)
+                point_x = int(np.nanmean(move_points[0]))
+                point_y = int(np.nanmean(move_points[1]))
+            cv2.circle(hist_gray,
+                       (point_y, point_x),
+                       CIRCLE_RADIUS,
+                       (0, 0, 255),
+                       2,
+                       16,
+                       0)
 
-    #         height_i += GRID_WIDTH
-
-    #    width_i += GRID_WIDTH
-
+            height_i += GRID_WIDTH
+        width_i += GRID_WIDTH
 
     # 全体的なモーション方向を計算
     angle_deg = cv2.motempl.calcGlobalOrientation(orientation, mask, motion_history, proc_time, DURATION)
@@ -81,9 +96,21 @@ while True:
                16,
                0)
     angle_rad = math.radians(angle_deg)
+
     cv2.line(hist_gray,
              (int(width / 2), int(height / 2)),
              (int(width / 2 + math.cos(angle_rad) * LINE_LENGTH_ALL), int(height / 2 + math.sin(angle_rad) * LINE_LENGTH_ALL)),
+             (0, 215, 0),
+             2,
+             16,
+             0)
+
+    cv2.putText(hist_gray, str(angle_deg), (32, 32), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 1, cv2.LINE_AA)
+    cv2.putText(hist_gray, str(-math.tan(angle_rad)), (32, 64), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 1, cv2.LINE_AA)
+
+    cv2.line(hist_gray,
+             (point_y, point_x),
+             (0, int(-math.tan(angle_rad)*(-point_y)+point_x)),
              (0, 215, 0),
              2,
              16,
@@ -98,7 +125,9 @@ while True:
     # 次のフレームの読み込み
     frame_pre = frame_next.copy()
     ret, frame_next = cap.read()
+    frame_next = frame_next[:,::-1]
 
 # 終了処理
 cv2.destroyAllWindows()
 cap.release()
+print(move_points)
