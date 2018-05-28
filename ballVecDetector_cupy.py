@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import  cupy as cp
 import math
 import time
 
@@ -93,8 +94,8 @@ while True:
             #             16,
             #             0)
             move_points = np.where(orientation > 0)
-            point_x = np.nanmean(move_points[0])
-            point_y = np.nanmean(move_points[1])
+            point_x = cp.mean(move_points[0])
+            point_y = cp.mean(move_points[1])
             if str(point_x) == 'nan':
                 point_x = width // 2
             if str(point_y) == 'nan':
