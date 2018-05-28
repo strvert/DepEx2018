@@ -3,6 +3,8 @@ import numpy as np
 import math
 import time
 
+
+np.set_printoptions(threshold=np.inf)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 out = cv2.VideoWriter('output.avi',fourcc, 30, (640, 480))
 
