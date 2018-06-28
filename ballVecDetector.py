@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import math
 import time
-from numba import jit
 
 
 def loop():
@@ -12,6 +11,7 @@ def loop():
 
     DURATION = 1.0
     LINE_LENGTH_ALL = 120
+    LINE_LENGTH_GRID = 5
     GRID_WIDTH = 40
     CIRCLE_RADIUS = 2
 
@@ -24,6 +24,8 @@ def loop():
     frame_pre = frame_next.copy()
     frame_next = frame_next[:,::-1]
     frame_number = 0
+    point_x = 0
+    point_y = 0
     while True:
         frame_number += 1
         # フレーム間の差分計算
@@ -64,9 +66,6 @@ def loop():
                  16,
                  0)
 
-        cv2.putText(hist_gray, str(angle_deg), (32, 32), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 1, cv2.LINE_AA)
-        cv2.putText(hist_gray, str(-math.tan(angle_rad)), (32, 64), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 1, cv2.LINE_AA)
-
         # 各座標の動きを緑色の線で描画
         width_i = GRID_WIDTH
         while width_i < width:
@@ -89,16 +88,17 @@ def loop():
                 #             2,
                 #             16,
                 #             0)
-                move_points = np.where(orientation > 10)
-                point_x = np.nanmean(move_points[0])
-                point_y = np.nanmean(move_points[1])
-                if str(point_x) == 'nan':
-                    point_x = width // 2
-                if str(point_y) == 'nan':
-                    point_y = height // 2
+                if frame_number % 2 == 0:
+                    move_points = np.where(orientation > 10)
+                    point_x = np.nanmean(move_points[0])
+                    point_y = np.nanmean(move_points[1])
+                    if str(point_x) == 'nan':
+                        point_x = width // 2
+                    if str(point_y) == 'nan':
+                        point_y = height // 2
 
-                point_x = int(point_x)
-                point_y = int(point_y)
+                    point_x = int(point_x)
+                    point_y = int(point_y)
 
                 cv2.circle(hist_gray,
                             (point_y, point_x),
@@ -107,16 +107,22 @@ def loop():
                             2,
                             16,
                             0)
-                cv2.line(hist_gray,
-                         (point_y, point_x),
-                         (0, int(math.tan(angle_rad)*(-point_y)+point_x)),
-                         (0, 215, 0),
-                         2,
-                         16,
-                         0)
+                try:
+                    cv2.line(hist_gray,
+                             (point_y, point_x),
+                             (0, int(math.tan(angle_rad)*(-point_y)+point_x)),
+                             (0, 215, 0),
+                             2,
+                             16,
+                             0)
+                except:
+                    pass
 
                 height_i += GRID_WIDTH
             width_i += GRID_WIDTH
+
+        cv2.putText(hist_gray, str(angle_deg), (32, 32), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 1, cv2.LINE_AA)
+        cv2.putText(hist_gray, str(-math.tan(angle_rad)), (32, 64), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 1, cv2.LINE_AA)
 
         # モーション画像を表示
         cv2.imshow("motion", hist_gray)
