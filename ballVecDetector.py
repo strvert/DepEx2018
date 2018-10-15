@@ -5,6 +5,7 @@ import time
 
 
 def loop():
+    velocity_path = "./velocity_output"
     np.set_printoptions(threshold=np.inf)
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter('output.avi',fourcc, 30, (640, 480))
@@ -26,6 +27,15 @@ def loop():
     frame_number = 0
     point_x = 0
     point_y = 0
+
+    detecting = False
+    starttime = 0
+    threshold = 1400000
+    distance = 50
+    detected_count = 0
+    detected_rad_total = 0
+    detected_rad_average = 0
+
     while True:
         frame_number += 1
         # フレーム間の差分計算
@@ -42,6 +52,11 @@ def loop():
         hist_color = np.array(np.clip((motion_history - (proc_time - DURATION)) / DURATION, 0, 1) * 255, np.uint8)
         # グレースケール変換
         hist_gray = cv2.cvtColor(hist_color, cv2.COLOR_GRAY2BGR)
+
+        # モーションの変化率を計算
+        movements_level = gray_diff.sum()
+        # print(movements_level)
+
         # モーション履歴画像の変化方向の計算
         #   ※ orientationには各座標に対して変化方向の値（deg）が格納されます
         mask, orientation = cv2.motempl.calcMotionGradient(motion_history, 0.25, 0.05, apertureSize = 5)
@@ -65,6 +80,27 @@ def loop():
                  2,
                  16,
                  0)
+
+        if movements_level >= threshold and not detecting:
+            detected_count = 0
+            detected_rad_total = 0
+            detecting = True
+            starttime = time.time()
+            print("Detection!")
+
+        if detecting:
+            detected_count += 1
+            detected_rad_total += angle_rad
+
+        if movements_level < threshold and detecting:
+            detecting = False
+            detected_rad_average = detected_rad_total / detected_count
+            endtime = time.time()-starttime
+            detected_speed = (distance/100)/endtime
+            print("Detection end.", detected_rad_average, "rad.",detected_speed, "m/s")
+            with open(velocity_path, 'w') as f:
+                f.write(str(detected_speed)+'\n')
+                f.write(str(detected_rad_average)+'\n')
 
         # 各座標の動きを緑色の線で描画
         width_i = GRID_WIDTH
@@ -135,6 +171,7 @@ def loop():
         frame_pre = frame_next.copy()
         ret, frame_next = cap.read()
         frame_next = frame_next[:,::-1]
+
 
     # 終了処理
     cv2.destroyAllWindows()
